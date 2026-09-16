@@ -23,10 +23,11 @@ namespace AMQP {
  *  Constructor
  *  @param  handler         User implemented handler object
  *  @param  hostname        The address to connect to
+ *  @param  timeout         TCP_USER_TIMEOUT in milliseconds, 0 for the kernel default
  */
-TcpConnection::TcpConnection(TcpHandler *handler, const Address &address) :
+TcpConnection::TcpConnection(TcpHandler *handler, const Address &address, unsigned int timeout) :
     _handler(handler),
-    _state(new TcpResolver(this, address.hostname(), address.port(), address.secure())),
+    _state(new TcpResolver(this, address.hostname(), address.port(), address.secure(), timeout)),
     _connection(this, address.login(), address.vhost()) 
 {
     // tell the handler

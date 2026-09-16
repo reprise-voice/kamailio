@@ -757,11 +757,20 @@ private:
 	void dec_connection(std::string uri, std::string zone, std::string name);
 
 public:
+    /* the TCP layer gets amqp_connect_timeout (TCP_USER_TIMEOUT on the socket,
+     * see AMQPConnection); the whole setup, TCP plus AMQP handshake, gets twice
+     * that before the libev timer closes it */
     AMQPHandler(struct ev_loop *loop) :
-    	LibEvHandler(loop, dbk_connect_timeout),
+    	LibEvHandler(loop, setup_timeout()),
     	_error(false),
     	_connected(false)
     {}
+
+    static uint16_t setup_timeout()
+    {
+    	long t = dbk_connect_timeout > 0 ? 2L * dbk_connect_timeout : 2L * DBK_DEFAULT_CONNECT_TIMEOUT;
+    	return t > UINT16_MAX ? UINT16_MAX : (uint16_t)t;
+    }
 
     virtual ~AMQPHandler() = default;
 
@@ -784,15 +793,30 @@ class AMQPConnection : public AMQP::TcpConnection
 {
 public:
 	AMQPConnection(AMQPHandler *handler, const kz::ConnectionInfo& info, std::string name) :
-		AMQP::TcpConnection(handler, info.uri()),
+		AMQP::TcpConnection(handler, info.uri(), dbk_connect_timeout > 0 ? (unsigned int)dbk_connect_timeout * 1000u : 0u),
 		m_info(info),
 		m_handler(handler),
-		m_name(name)
+		m_name(name),
+		m_started(std::chrono::steady_clock::now())
 	{}
 
 	AMQPHandler * handler() const {return m_handler;}
 	const ConnectionInfo& info() {return m_info;}
 	const std::string& name() {return m_name;}
+
+	/* host:port of the broker, without the credentials the uri carries */
+	std::string endpoint() const
+	{
+		const AMQP::Address& address = m_info.uri();
+		std::ostringstream os;
+		os << address.hostname() << ":" << address.port();
+		return os.str();
+	}
+
+	long elapsed_ms() const
+	{
+		return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - m_started).count();
+	}
 
 	void setError(const char *message)
 	{
@@ -803,6 +827,7 @@ protected:
 	const ConnectionInfo& m_info;
 	AMQPHandler *m_handler;
 	std::string m_name;
+	std::chrono::steady_clock::time_point m_started;
 
 };
 
@@ -822,6 +847,15 @@ void AMQPHandler::onError(AMQP::TcpConnection *connection, const char *message)
 	int c5 = ++connection_name_error[name + "::" + zone];
 
 	AMQP_DBG << uri << " error (" << c1 << "/" << c2 << "/" << c3 << "/" << c4 << "/" << c5 << ") : " << message;
+
+	/* an attempt that never became ready is otherwise only visible at debug level;
+	 * the module retries it silently every few seconds */
+	if(!_connected) {
+		AMQPConnection *c = static_cast<AMQPConnection*>(connection);
+		AMQP_NOTICE << "listener " << name << " in zone " << zone << ": connection to " << c->endpoint()
+		            << " failed after " << c->elapsed_ms() << " ms: " << message
+		            << " (amqp_connect_timeout " << dbk_connect_timeout << " s)";
+	}
 
 	kz_xavp_status_update(xavp_counters({{uri + "::error", c1}
 	                                    ,{zone + "::error", c2}
@@ -1581,7 +1615,8 @@ protected:
 			} else {
 
 			}
-			AMQP_DBG << "reconnecting to " << info.uri() << " in " << wait.count() << " ms";
+			AMQP_NOTICE << "listener " << listener.name << " in zone " << zone << ": reconnecting to "
+			            << c.endpoint() << " in " << wait.count() << " ms";
 			std::ostringstream os;
 			os << "reconnecting in " << wait.count() << " ms";
 			std::string msg = os.str();

@@ -196,6 +196,12 @@ private:
          *  @var ev_tstamp
          */
         ev_tstamp _expire;
+
+        /**
+         *  The connect timeout the wrapper was created with, for the log line
+         *  @var uint16_t
+         */
+        uint16_t _timeout;
         
         /**
          *  Interval between heartbeats (we should send every interval / 2 a new heartbeat)
@@ -238,7 +244,7 @@ private:
                 
                 // the timer expired because the connection could not be set up in time,
                 // close the connection with immediate effect
-                AMQP_DBG << "close connection timeout " << kz_gettid() << " on " << my_pid();
+                AMQP_NOTICE << "connection not ready " << _timeout << " s after it was started, closing it";
 
                 _connection->close(true);
             }
@@ -295,6 +301,7 @@ private:
             _loop(loop),
             _next(0.0),
             _expire(ev_now(loop) + timeout),
+            _timeout(timeout),
             _interval(0)
         {
             // store the object in the data "void*"

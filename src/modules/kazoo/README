@@ -55,6 +55,8 @@ Luis Azedo
                     4.3.3. amqp_waitframe_timeout(str)
                     4.3.4. amqp_query_timeout(str)
                     4.3.5. amqp_query_timeout_avp(str)
+                    4.3.6. amqp_connect_timeout(int)
+                    4.3.7. amqp_heartbeats(int)
 
               4.4. presence related
 
@@ -109,18 +111,20 @@ Luis Azedo
    1.16. Set amqp_waitframe_timeout parameter
    1.17. Set amqp_query_timeout parameter
    1.18. >Set amqp_query_timeout_avp parameter
-   1.19. Set db_url parameter
-   1.20. Set presentity_table parameter
-   1.21. Set pua_mode parameter
-   1.22. kazoo_publish usage
-   1.23. kazoo_query usage
-   1.24. kazoo_subscribe usage
-   1.25. kazoo_subscribe usage
-   1.26. kazoo_pua_publish usage
-   1.27. kazoo_encode usage
-   1.28. kazoo_json usage
-   1.29. kz.json usage
-   1.30. kz.encode usage
+   1.19. Set amqp_connect_timeout parameter
+   1.20. Set amqp_heartbeats parameter
+   1.21. Set db_url parameter
+   1.22. Set presentity_table parameter
+   1.23. Set pua_mode parameter
+   1.24. kazoo_publish usage
+   1.25. kazoo_query usage
+   1.26. kazoo_subscribe usage
+   1.27. kazoo_subscribe usage
+   1.28. kazoo_pua_publish usage
+   1.29. kazoo_encode usage
+   1.30. kazoo_json usage
+   1.31. kz.json usage
+   1.32. kz.encode usage
 
 Chapter 1. Admin Guide
 
@@ -164,6 +168,8 @@ Chapter 1. Admin Guide
               4.3.3. amqp_waitframe_timeout(str)
               4.3.4. amqp_query_timeout(str)
               4.3.5. amqp_query_timeout_avp(str)
+              4.3.6. amqp_connect_timeout(int)
+              4.3.7. amqp_heartbeats(int)
 
         4.4. presence related
 
@@ -339,6 +345,8 @@ event_route[kazoo:consumer-event]
         4.3.3. amqp_waitframe_timeout(str)
         4.3.4. amqp_query_timeout(str)
         4.3.5. amqp_query_timeout_avp(str)
+        4.3.6. amqp_connect_timeout(int)
+        4.3.7. amqp_heartbeats(int)
 
    4.4. presence related
 
@@ -565,6 +573,10 @@ modparam("kazoo", "amqp_query_timeout_micro", 200000)
 
 4.3.5. amqp_query_timeout_avp(str)
 
+4.3.6. amqp_connect_timeout(int)
+
+4.3.7. amqp_heartbeats(int)
+
    avp holding the value in seconds for Timeout when checking for reply
    messages from rabbitmq for kazoo_query commands.
 
@@ -582,6 +594,40 @@ route[SOME_ROUTE]
 
 ...
 
+4.3.6. amqp_connect_timeout(int)
+
+   Seconds a connection to the broker may take. The value is set as
+   TCP_USER_TIMEOUT on the socket before it connects, so on Linux it
+   bounds the connect itself (an attempt whose SYNs are dropped no longer
+   waits for the kernel's SYN retries, about two minutes) and, once
+   connected, how long a send may stay unacknowledged before the
+   connection is closed. Twice the value bounds the whole setup, TCP plus
+   AMQP handshake. Keep it above the heartbeat interval (amqp_heartbeats)
+   so that an idle but healthy connection is never cut. A failed attempt
+   is logged at NOTICE with the time it took, and the module retries
+   three seconds later.
+
+   Default value is 10.
+
+   Example 1.19. Set amqp_connect_timeout parameter
+...
+modparam("kazoo", "amqp_connect_timeout", 10)
+...
+
+4.3.7. amqp_heartbeats(int)
+
+   AMQP heartbeat interval in seconds negotiated with the broker. The
+   module sends a heartbeat every half interval and closes a connection
+   that has been silent for the interval plus two seconds. A negative
+   value accepts what the broker proposes; 0 disables heartbeats.
+
+   Default value is -1 (the broker's proposal).
+
+   Example 1.20. Set amqp_heartbeats parameter
+...
+modparam("kazoo", "amqp_heartbeats", 5)
+...
+
 4.4. presence related
 
 4.4.1. db_url(str)
@@ -593,7 +639,7 @@ route[SOME_ROUTE]
 
    Default value is “NULL”.
 
-   Example 1.19. Set db_url parameter
+   Example 1.21. Set db_url parameter
 ...
 modparam("kazoo", "db_url", "mysql://kamailio:kamailiorw@localhost/kamailio")
 ...
@@ -604,7 +650,7 @@ modparam("kazoo", "db_url", "mysql://kamailio:kamailiorw@localhost/kamailio")
 
    Default value is “presentity”.
 
-   Example 1.20. Set presentity_table parameter
+   Example 1.22. Set presentity_table parameter
 ...
 modparam("kazoo", "presentity_table", "my_presentity_table")
 ...
@@ -616,7 +662,7 @@ modparam("kazoo", "presentity_table", "my_presentity_table")
 
    Default value is “1”.
 
-   Example 1.21. Set pua_mode parameter
+   Example 1.23. Set pua_mode parameter
 ...
 modparam("kazoo", "pua_mode", 0)
 ...
@@ -655,7 +701,7 @@ modparam("kazoo", "pua_mode", 0)
 
    This function can be used from ANY ROUTE.
 
-   Example 1.22. kazoo_publish usage
+   Example 1.24. kazoo_publish usage
 ...
 $var(amqp_payload_request) = $_s({"Event-Category" : "directory", "Event-Name" :
  "reg_success", "Contact" : "$(ct{s.escape.common}{s.replace,\','}{s.replace,$$,
@@ -677,7 +723,7 @@ amqp_headers])
 
    This function can be used from ANY ROUTE.
 
-   Example 1.23. kazoo_query usage
+   Example 1.25. kazoo_query usage
 ...
 $var(amqp_payload_request) = "{'Event-Category' : 'call_event' , 'Event-Name' :
 'query_user_channels_req', 'Realm' : '" + $fd + "', 'Username' : '" + $fU + "',
@@ -701,7 +747,7 @@ var(amqp_result)")) {
 
    This function must be called from event_route[kazoo:mod-init].
 
-   Example 1.24. kazoo_subscribe usage
+   Example 1.26. kazoo_subscribe usage
 ...
 event_route[kazoo:mod-init]
 {
@@ -733,7 +779,7 @@ event_route[kazoo:consumer-event]
 
    This function must be called from event_route[kazoo:mod-init].
 
-   Example 1.25. kazoo_subscribe usage
+   Example 1.27. kazoo_subscribe usage
 ...
 event_route[kazoo:mod-init]
 {
@@ -758,7 +804,7 @@ event_route[kazoo:consumer-event]
 
    This function can be used from ANY ROUTE.
 
-   Example 1.26. kazoo_pua_publish usage
+   Example 1.28. kazoo_pua_publish usage
 ...
 event_route[kazoo:consumer-event-presence-update]
 {
@@ -779,7 +825,7 @@ son,From})");
 
    This function can be used from ANY ROUTE.
 
-   Example 1.27. kazoo_encode usage
+   Example 1.29. kazoo_encode usage
 ...
 kazoo_encode("$ci", "$var(callid_encoded)");
 $var(amqp_routing_key) = "call.status_req.$var(callid_encoded)";
@@ -792,7 +838,7 @@ $var(amqp_routing_key) = "call.status_req.$var(callid_encoded)";
 
    This function can be used from ANY ROUTE.
 
-   Example 1.28. kazoo_json usage
+   Example 1.30. kazoo_json usage
 ...
 kazoo_json("$var(amqp_result)", "Channels[0].switch_url", "$du");
 if($du != $null) {
@@ -810,7 +856,7 @@ if($du != $null) {
 
    The prefix for kazoo transformations is kz.
      * json
-       Example 1.29. kz.json usage
+       Example 1.31. kz.json usage
 ...
 #kazoo_json("$var(amqp_result)", "Channels[0].switch_url", "$du");
 $du = $kzR{kz.json,Channels[0].switch_url};
@@ -820,7 +866,7 @@ if($du != $null) {
 }
 ...
      * encode
-       Example 1.30. kz.encode usage
+       Example 1.32. kz.encode usage
 ...
 #kazoo_encode("$ci", "$var(callid_encoded)");
 #$var(amqp_routing_key) = "call.status_req.$var(callid_encoded)";
