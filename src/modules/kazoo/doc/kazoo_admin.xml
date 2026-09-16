@@ -486,6 +486,50 @@ route[SOME_ROUTE]
 				</example>
 			</section>
 
+			<section>
+				<title><varname>amqp_connect_timeout</varname>(int)</title>
+				<para>Seconds a connection to the broker may take. The value is set as
+					TCP_USER_TIMEOUT on the socket before it connects, so on Linux it bounds
+					the connect itself (an attempt whose SYNs are dropped no longer waits
+					for the kernel's SYN retries, about two minutes) and, once connected,
+					how long a send may stay unacknowledged before the connection is
+					closed. Twice the value bounds the whole setup, TCP plus AMQP
+					handshake. Keep it above the heartbeat interval
+					(<varname>amqp_heartbeats</varname>) so that an idle but healthy
+					connection is never cut. A failed attempt is logged at NOTICE with the
+					time it took, and the module retries three seconds later.</para>
+				<para>
+					<emphasis>Default value is 10.</emphasis>
+				</para>
+				<example>
+					<title>Set <varname>amqp_connect_timeout</varname> parameter</title>
+					<programlisting format="linespecific">
+...
+modparam("kazoo", "amqp_connect_timeout", 10)
+...
+</programlisting>
+				</example>
+			</section>
+
+			<section>
+				<title><varname>amqp_heartbeats</varname>(int)</title>
+				<para>AMQP heartbeat interval in seconds negotiated with the broker. The
+					module sends a heartbeat every half interval and closes a connection
+					that has been silent for the interval plus two seconds. A negative
+					value accepts what the broker proposes; 0 disables heartbeats.</para>
+				<para>
+					<emphasis>Default value is -1 (the broker's proposal).</emphasis>
+				</para>
+				<example>
+					<title>Set <varname>amqp_heartbeats</varname> parameter</title>
+					<programlisting format="linespecific">
+...
+modparam("kazoo", "amqp_heartbeats", 5)
+...
+</programlisting>
+				</example>
+			</section>
+
 
 		</section>
 

@@ -192,8 +192,10 @@ public:
      *  Constructor
      *  @param  handler         User implemented handler object
      *  @param  hostname        The address to connect to
+     *  @param  timeout         TCP_USER_TIMEOUT for the socket in milliseconds, 0 leaves the kernel default:
+     *                          bounds the connect() (SYN_SENT) and, once connected, unacknowledged sends
      */
-    TcpConnection(TcpHandler *handler, const Address &address);
+    TcpConnection(TcpHandler *handler, const Address &address, unsigned int timeout = 0);
     
     /**
      *  No copying

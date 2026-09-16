@@ -41,6 +41,8 @@ extern str dbk_default_worker_name_template;
 extern int dbk_use_heartbeats;
 extern str kz_xavp_status;
 extern int kz_enable_clock_diff_warning;
+/* seconds; TCP_USER_TIMEOUT on the broker socket, and half the setup timer */
+#define DBK_DEFAULT_CONNECT_TIMEOUT 10
 extern int dbk_connect_timeout;
 
 struct cfg_group_kz_presence {

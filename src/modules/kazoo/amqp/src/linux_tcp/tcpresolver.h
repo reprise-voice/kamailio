@@ -52,6 +52,16 @@ private:
      *  @var uint16_t
      */
     uint16_t _port;
+
+    /**
+     *  TCP_USER_TIMEOUT for the socket in milliseconds, 0 leaves the kernel default.
+     *  The connect() below blocks; without a bound an attempt whose SYNs are dropped
+     *  lasts the kernel's SYN retries (about two minutes on Linux). On Linux the
+     *  option bounds SYN_SENT as well as unacknowledged sends on the established
+     *  connection, and it is inherited by the connected socket.
+     *  @var unsigned int
+     */
+    unsigned int _timeout;
     
     /**
      *  A pipe that is used to send back the socket that is connected to RabbitMQ
@@ -100,6 +110,11 @@ private:
                 
                 // move on on failure
                 if (_socket < 0) continue;
+
+#ifdef TCP_USER_TIMEOUT
+                // bound the connect attempt (and later the unacknowledged sends) before connecting
+                if (_timeout > 0) setsockopt(_socket, IPPROTO_TCP, TCP_USER_TIMEOUT, &_timeout, sizeof(_timeout));
+#endif
                 
                 // connect to the socket
                 if (connect(_socket, addresses[i]->ai_addr, addresses[i]->ai_addrlen) == 0) break;
@@ -148,12 +163,14 @@ public:
      *  @param  hostname    The hostname for the lookup
      *  @param  portnumber  The portnumber for the lookup
      *  @param  secure      Do we need a secure tls connection when ready?
+     *  @param  timeout     TCP_USER_TIMEOUT in milliseconds, 0 for the kernel default
      */
-    TcpResolver(TcpParent *parent, std::string hostname, uint16_t port, bool secure) : 
+    TcpResolver(TcpParent *parent, std::string hostname, uint16_t port, bool secure, unsigned int timeout = 0) : 
         TcpExtState(parent), 
         _hostname(std::move(hostname)),
         _secure(secure),
-        _port(port)
+        _port(port),
+        _timeout(timeout)
     {
         // tell the event loop to monitor the filedescriptor of the pipe
         parent->onIdle(this, _pipe.in(), readable);
